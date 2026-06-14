@@ -31,6 +31,10 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
 .btn-purple{background:#8b5cf6;color:#fff}
 .btn-danger-ghost{background:transparent;border:1px solid rgba(239,68,68,.35);color:#f87171}
 
+/* FAB y handle — ocultos en desktop */
+.map-fab{display:none;position:absolute;bottom:24px;right:16px;z-index:900;background:var(--accent);color:#0f1117;border:none;border-radius:50px;padding:12px 20px;font-size:13px;font-weight:800;box-shadow:0 4px 16px rgba(245,158,11,.5);cursor:pointer;align-items:center;gap:7px;letter-spacing:.3px}
+.drawer-handle{display:none;justify-content:center;align-items:center;padding:10px 0 4px;flex-shrink:0;cursor:pointer;touch-action:none}
+.drawer-pill{width:36px;height:4px;border-radius:2px;background:var(--border)}
 .main-body{display:flex;flex:1;overflow:hidden;position:relative}
 #map{flex:1;z-index:1;position:relative}
 .leaflet-tile-pane{opacity:.88}
@@ -48,22 +52,37 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
   .logo-title{font-size:13px}
   .logo-sub{display:none}
   .hbtns .btn{padding:5px 10px;font-size:10px}
-  .main-body{flex-direction:column}
-  #map{flex:none;height:52vh;min-height:240px}
-  .side{width:100%;border-left:none;border-top:2px solid var(--accent);flex:1;overflow:hidden}
-  /* Legend más chica en móvil */
-  .lgnd{font-size:8px;padding:7px 9px;min-width:130px}
+  .main-body{position:relative;flex:1;overflow:hidden}
+  /* Mapa ocupa TODA la pantalla */
+  #map{position:absolute;inset:0;width:100%;height:100%}
+  /* Panel flotante tipo bottom drawer */
+  .side{
+    position:absolute;bottom:0;left:0;right:0;
+    width:100%;height:72vh;
+    border-left:none;border-top:2px solid var(--accent);
+    border-radius:16px 16px 0 0;
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.32,.72,0,1);
+    z-index:800;
+    box-shadow:0 -8px 32px rgba(0,0,0,.5);
+  }
+  .side.open{transform:translateY(0)}
+  /* Pill handle */
+  .drawer-handle{display:flex!important}
+  /* Botón flotante sobre el mapa para abrir el drawer */
+  .map-fab{display:flex!important}
+  /* Legend más chica */
+  .lgnd{font-size:8px;padding:7px 9px;min-width:130px;bottom:12px}
   .lgnd-t{font-size:7.5px}
   .li{font-size:8.5px;margin-bottom:3px}
   .lsw{width:9px;height:9px}
-  /* Tooltip no en móvil (usa la card lateral) */
   .ftip{display:none!important}
-  /* Hit card más compacta */
   .hit-card{padding:8px 12px}
   .hp-main{font-size:22px}
   .hp-iva{font-size:12px}
-  /* Marcador más grande para touch */
+  .leaflet-control-zoom{margin-bottom:80px!important}
   .leaflet-control-zoom a{width:36px!important;height:36px!important;line-height:36px!important;font-size:20px!important}
+  .touch-hint{display:none}
 }
 
 /* HIT CARD */
@@ -214,9 +233,17 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
     </div>
     <!-- Touch hint (mobile) -->
     <div class="touch-hint">👆 Tocá el mapa<br>para ver el precio</div>
+    <!-- FAB button (mobile only) -->
+    <button class="map-fab" id="mapFab" onclick="toggleDrawer()">
+      💰 Ver precios
+    </button>
   </div>
 
-  <div class="side">
+  <div class="side" id="sidePanel">
+    <!-- Drawer handle (mobile only) -->
+    <div class="drawer-handle" id="drawerHandle" onclick="toggleDrawer()">
+      <div class="drawer-pill"></div>
+    </div>
     <!-- Hit card -->
     <div class="hit-card" id="hc">
       <div class="hit-top">
@@ -440,6 +467,28 @@ function renderRingPolys(){
   });
 }
 
+// ── DRAWER (mobile) ─────────────────────────────────────
+function toggleDrawer(forceOpen){
+  if(!isMobile) return;
+  var panel=document.getElementById('sidePanel');
+  var fab=document.getElementById('mapFab');
+  var isOpen=panel.classList.contains('open');
+  if(forceOpen===true||(!isOpen)){
+    panel.classList.add('open');
+    if(fab) fab.textContent='✕ Cerrar';
+  } else {
+    panel.classList.remove('open');
+    if(fab) fab.innerHTML='💰 Ver precios';
+    map.invalidateSize();
+  }
+}
+// Cerrar drawer al tocar el mapa en móvil
+map.on('mousedown',function(){
+  if(isMobile&&document.getElementById('sidePanel').classList.contains('open')){
+    toggleDrawer();
+  }
+});
+
 // ── Interacción ──────────────────────────────────────────
 // Desktop: mousemove en tiempo real
 // Mobile: click/tap
@@ -457,11 +506,10 @@ map.on('click',function(e){
   var ring=ringFor(res.dist);
   updateHC(ring,res.dist,res.suc);
   updCK(ring,res.dist,res.suc);
-  // En móvil: ir a la calculadora automáticamente
+  // En móvil: abrir el drawer con el precio
   if(isMobile){
     ST('calc');
-    // Scroll al panel
-    document.getElementById('panel-calc').scrollTop=0;
+    toggleDrawer(true);
   }
 });
 map.on('mouseout',function(){if(!isMobile)hideFtip();});
@@ -715,7 +763,11 @@ function showToast(msg,type){var el=document.getElementById('toast');el.textCont
 var loaded=loadState();
 if(!loaded) buildRings();
 renderAll();
-if(isMobile) document.getElementById('calcHint').textContent='Tocá cualquier punto del mapa para ver el precio de flete a esa zona.';
+if(isMobile){
+  document.getElementById('calcHint').textContent='Tocá cualquier punto del mapa para ver el precio de flete.';
+  // En móvil el mapa necesita invalidateSize porque el layout cambió
+  setTimeout(function(){map.invalidateSize();},100);
+}
 </script>
 </body>
 </html>
