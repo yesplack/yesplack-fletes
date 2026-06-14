@@ -1,10 +1,10 @@
 {
   "v": 2,
-  "ts": 1781438566311,
+  "ts": 1781438581806,
   "cfg": {
-    "r0": 5,
-    "dr": 1,
-    "n": 14,
+    "r0": 3,
+    "dr": 3,
+    "n": 20,
     "p0": 30,
     "dp": 5,
     "iva": 21
@@ -30,101 +30,143 @@
   "rings": [
     {
       "idx": 0,
-      "km": 5,
+      "km": 3,
       "price": 30,
       "color": "#00e676",
-      "label": "0–5km"
+      "label": "0–3km"
     },
     {
       "idx": 1,
       "km": 6,
       "price": 35,
       "color": "#39e03a",
-      "label": "5–6km"
+      "label": "3–6km"
     },
     {
       "idx": 2,
-      "km": 7,
+      "km": 9,
       "price": 40,
       "color": "#76d900",
-      "label": "6–7km"
+      "label": "6–9km"
     },
     {
       "idx": 3,
-      "km": 8,
+      "km": 12,
       "price": 45,
       "color": "#aecf00",
-      "label": "7–8km"
+      "label": "9–12km"
     },
     {
       "idx": 4,
-      "km": 9,
+      "km": 15,
       "price": 50,
       "color": "#ddc300",
-      "label": "8–9km"
+      "label": "12–15km"
     },
     {
       "idx": 5,
-      "km": 10,
+      "km": 18,
       "price": 55,
       "color": "#ffaa00",
-      "label": "9–10km"
+      "label": "15–18km"
     },
     {
       "idx": 6,
-      "km": 11,
+      "km": 21,
       "price": 60,
       "color": "#ff8400",
-      "label": "10–11km"
+      "label": "18–21km"
     },
     {
       "idx": 7,
-      "km": 12,
+      "km": 24,
       "price": 65,
       "color": "#ff5e00",
-      "label": "11–12km"
+      "label": "21–24km"
     },
     {
       "idx": 8,
-      "km": 13,
+      "km": 27,
       "price": 70,
       "color": "#ff3300",
-      "label": "12–13km"
+      "label": "24–27km"
     },
     {
       "idx": 9,
-      "km": 14,
+      "km": 30,
       "price": 75,
       "color": "#e50000",
-      "label": "13–14km"
+      "label": "27–30km"
     },
     {
       "idx": 10,
-      "km": 15,
+      "km": 33,
       "price": 80,
       "color": "#c00000",
-      "label": "14–15km"
+      "label": "30–33km"
     },
     {
       "idx": 11,
-      "km": 16,
+      "km": 36,
       "price": 85,
       "color": "#9b0000",
-      "label": "15–16km"
+      "label": "33–36km"
     },
     {
       "idx": 12,
-      "km": 17,
+      "km": 39,
       "price": 90,
       "color": "#780000",
-      "label": "16–17km"
+      "label": "36–39km"
     },
     {
       "idx": 13,
-      "km": 18,
+      "km": 42,
       "price": 95,
       "color": "#560000",
-      "label": "17–18km"
+      "label": "39–42km"
+    },
+    {
+      "idx": 14,
+      "km": 45,
+      "price": 100,
+      "color": "#380000",
+      "label": "42–45km"
+    },
+    {
+      "idx": 15,
+      "km": 48,
+      "price": 105,
+      "color": "#200000",
+      "label": "45–48km"
+    },
+    {
+      "idx": 16,
+      "km": 51,
+      "price": 110,
+      "color": "#140000",
+      "label": "48–51km"
+    },
+    {
+      "idx": 17,
+      "km": 54,
+      "price": 115,
+      "color": "#0c0000",
+      "label": "51–54km"
+    },
+    {
+      "idx": 18,
+      "km": 57,
+      "price": 120,
+      "color": "#060000",
+      "label": "54–57km"
+    },
+    {
+      "idx": 19,
+      "km": 60,
+      "price": 125,
+      "color": "#020000",
+      "label": "57–60km"
     }
   ]
 }
