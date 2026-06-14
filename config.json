@@ -1,0 +1,130 @@
+{
+  "v": 2,
+  "ts": 1781438432952,
+  "cfg": {
+    "r0": 5,
+    "dr": 1,
+    "n": 14,
+    "p0": 30,
+    "dp": 5,
+    "iva": 21
+  },
+  "sucs": [
+    {
+      "id": "s1",
+      "name": "Benavidez",
+      "addr": "Diego Palma 365, Tigre",
+      "lat": -34.4,
+      "lng": -58.673,
+      "col": "#f59e0b"
+    },
+    {
+      "id": "s2",
+      "name": "Matheu",
+      "addr": "Lavalle 211, Escobar",
+      "lat": -34.353,
+      "lng": -58.805,
+      "col": "#a78bfa"
+    }
+  ],
+  "rings": [
+    {
+      "idx": 0,
+      "km": 5,
+      "price": 30,
+      "color": "#00e676",
+      "label": "0–5km"
+    },
+    {
+      "idx": 1,
+      "km": 6,
+      "price": 35,
+      "color": "#39e03a",
+      "label": "5–6km"
+    },
+    {
+      "idx": 2,
+      "km": 7,
+      "price": 40,
+      "color": "#76d900",
+      "label": "6–7km"
+    },
+    {
+      "idx": 3,
+      "km": 8,
+      "price": 45,
+      "color": "#aecf00",
+      "label": "7–8km"
+    },
+    {
+      "idx": 4,
+      "km": 9,
+      "price": 50,
+      "color": "#ddc300",
+      "label": "8–9km"
+    },
+    {
+      "idx": 5,
+      "km": 10,
+      "price": 55,
+      "color": "#ffaa00",
+      "label": "9–10km"
+    },
+    {
+      "idx": 6,
+      "km": 11,
+      "price": 60,
+      "color": "#ff8400",
+      "label": "10–11km"
+    },
+    {
+      "idx": 7,
+      "km": 12,
+      "price": 65,
+      "color": "#ff5e00",
+      "label": "11–12km"
+    },
+    {
+      "idx": 8,
+      "km": 13,
+      "price": 70,
+      "color": "#ff3300",
+      "label": "12–13km"
+    },
+    {
+      "idx": 9,
+      "km": 14,
+      "price": 75,
+      "color": "#e50000",
+      "label": "13–14km"
+    },
+    {
+      "idx": 10,
+      "km": 15,
+      "price": 80,
+      "color": "#c00000",
+      "label": "14–15km"
+    },
+    {
+      "idx": 11,
+      "km": 16,
+      "price": 85,
+      "color": "#9b0000",
+      "label": "15–16km"
+    },
+    {
+      "idx": 12,
+      "km": 17,
+      "price": 90,
+      "color": "#780000",
+      "label": "16–17km"
+    },
+    {
+      "idx": 13,
+      "km": 18,
+      "price": 95,
+      "color": "#560000",
+      "label": "17–18km"
+    }
+  ]
+}
