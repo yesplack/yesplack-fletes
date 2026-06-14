@@ -1,6 +1,6 @@
 {
   "v": 2,
-  "ts": 1781438559208,
+  "ts": 1781438566311,
   "cfg": {
     "r0": 5,
     "dr": 1,
@@ -10,22 +10,6 @@
     "iva": 21
   },
   "sucs": [
-    {
-      "id": "s1",
-      "name": "Benavidez",
-      "addr": "Diego Palma 365, Tigre",
-      "lat": -34.4,
-      "lng": -58.673,
-      "col": "#f59e0b"
-    },
-    {
-      "id": "s2",
-      "name": "Matheu",
-      "addr": "Lavalle 211, Escobar",
-      "lat": -34.353,
-      "lng": -58.805,
-      "col": "#a78bfa"
-    },
     {
       "id": "s10",
       "name": "Benavidez",
