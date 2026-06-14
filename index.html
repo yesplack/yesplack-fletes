@@ -33,7 +33,19 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
 .btn-green:hover,.btn-green:active{background:#16a34a}
 .btn-danger-ghost{background:transparent;border:1px solid rgba(239,68,68,.35);color:#f87171}
 
-/* FAB y handle — ocultos en desktop */
+/* Floating save button — aparece cuando hay cambios sin publicar */
+.save-float-btn{
+  display:none;position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  z-index:900;background:#22c55e;color:#fff;border:none;border-radius:50px;
+  padding:10px 22px;font-size:12px;font-weight:800;
+  box-shadow:0 4px 18px rgba(34,197,94,.5);cursor:pointer;
+  align-items:center;gap:7px;letter-spacing:.3px;
+  animation:pulse-green 2s infinite;white-space:nowrap
+}
+.save-float-btn.show{display:flex}
+.save-float-btn:active{transform:translateX(-50%) scale(.96)}
+@keyframes pulse-green{0%,100%{box-shadow:0 4px 18px rgba(34,197,94,.5)}50%{box-shadow:0 4px 28px rgba(34,197,94,.8)}}
+@media(max-width:639px){.save-float-btn{top:8px;font-size:11px;padding:8px 16px}}
 .map-fab{display:none;position:absolute;bottom:24px;right:16px;z-index:900;background:var(--accent);color:#0f1117;border:none;border-radius:50px;padding:12px 20px;font-size:13px;font-weight:800;box-shadow:0 4px 16px rgba(245,158,11,.5);cursor:pointer;align-items:center;gap:7px;letter-spacing:.3px}
 .drawer-handle{display:none;justify-content:center;align-items:center;padding:10px 0 4px;flex-shrink:0;cursor:pointer;touch-action:none}
 .drawer-pill{width:36px;height:4px;border-radius:2px;background:var(--border)}
@@ -246,6 +258,10 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
     <!-- FAB button (mobile only) -->
     <button class="map-fab" id="mapFab" onclick="toggleDrawer()">
       💰 Ver precios
+    </button>
+    <!-- Floating SAVE button — aparece cuando hay cambios pendientes -->
+    <button class="save-float-btn" id="saveFloatBtn" onclick="saveToCloud()">
+      ☁ Publicar cambios
     </button>
   </div>
 
@@ -612,7 +628,9 @@ function renderRT(){
 }
 function applyP(){
   rings.forEach(function(r,i){var inp=document.getElementById('rp'+i);if(inp){var v=+inp.value;if(v>0)r.price=v;}});
-  renderLegend();updStats();updCalcSel();renderRT();showToast('✓ Precios actualizados');
+  renderLegend();updStats();updCalcSel();renderRT();
+  lsSave();markPendingChanges();
+  showToast('✓ Precios actualizados — presioná Guardar para publicar');
 }
 
 function updFBox(){
@@ -635,7 +653,8 @@ function regen(){
   cfg.p0=+document.getElementById('cP0').value||30;
   cfg.dp=+document.getElementById('cDP').value||5;
   cfg.iva=+document.getElementById('cIva').value||21;
-  buildRings();renderAll();showToast('✓ '+rings.length+' radios regenerados');
+  buildRings();renderAll();
+  showToast('✓ '+rings.length+' radios listos — presioná Guardar para publicar');
 }
 function updStats(){
   var p=rings.map(function(r){return r.price;});
@@ -736,9 +755,9 @@ var GH = {
 
 var GH_URL = 'https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file;
 var _lastSha = null;      // SHA del archivo actual (necesario para actualizarlo)
-var _saveTimer = null;    // debounce para no guardar en cada keystroke
+
 var _syncInterval = null; // polling cada 30s para detectar cambios de otros
-var _lastSaveTime = 0;
+
 
 // Indicador visual de estado de sync
 function setSyncStatus(status, msg){
@@ -811,7 +830,7 @@ function ghSave(){
     showToast('⚠ Configurá el token GitHub para sincronizar');
     return;
   }
-  _lastSaveTime = Date.now();
+  
   setSyncStatus('saving','Guardando...');
   var data = buildSaveData();
   var content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
@@ -832,8 +851,8 @@ function ghSave(){
   .then(function(resp){
     _lastSha = resp.content.sha;
     lsSave(); // también guardar local como cache
-    setSyncStatus('ok','Guardado · '+ new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
-    showToast('✓ Cambios guardados en la nube');
+    setSyncStatus('ok','Publicado · '+ new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+    showToast('✅ Publicado — todos los dispositivos actualizarán en 30s');
   })
   .catch(function(e){
     setSyncStatus('error','Error al guardar');
@@ -841,28 +860,69 @@ function ghSave(){
   });
 }
 
-// Debounce — espera 2s sin cambios antes de guardar
-function scheduleSave(){
-  clearTimeout(_saveTimer);
-  setSyncStatus('saving','Guardando en 2s...');
-  _saveTimer = setTimeout(function(){ghSave();}, 2000);
+// ── GUARDADO EXPLÍCITO ────────────────────────────────────
+var _hasPendingChanges = false;
+
+function markPendingChanges(){
+  if(!GH.token) return; // sin token no tiene sentido mostrar
+  _hasPendingChanges = true;
+  setSyncStatus('saving','Cambios sin guardar');
+  // Mostrar botón flotante de guardar
+  var btn = document.getElementById('saveFloatBtn');
+  if(btn) btn.classList.add('show');
 }
 
-// ─── POLLING cada 30s (detecta cambios de otros dispositivos) ─
+function clearPendingChanges(){
+  _hasPendingChanges = false;
+  var btn = document.getElementById('saveFloatBtn');
+  if(btn) btn.classList.remove('show');
+}
+
+// Guardado manual — el único que escribe en GitHub
+function saveToCloud(){
+  if(!GH.token){
+    showToast('Configurá el token GitHub en ⚙ Config','err');
+    ST('config');return;
+  }
+  clearPendingChanges();
+  ghSave();
+}
+
+// ─── POLLING cada 30s — detecta si otro dispositivo publicó cambios ──
+var _lastKnownSavedAt = 0; // timestamp del último guardado que conocemos
+
 function startPolling(){
   if(_syncInterval) clearInterval(_syncInterval);
+  if(!GH.token) return;
   _syncInterval = setInterval(function(){
-    // No recargar si acabo de guardar yo mismo (evita loop)
-    if(Date.now() - _lastSaveTime < 10000) return;
-    if(!GH.token) return;
-    ghLoad(function(st){
-      if(!st) return;
-      var applied = applyLoadedData(st);
-      if(applied){
-        buildRings(); // solo si vienen rings vacíos
-        renderAll();
+    // Solo leer el SHA sin bajar el contenido completo (más liviano)
+    fetch(GH_URL+'?ref='+GH.branch+'&t='+Date.now(),{
+      headers:{'Authorization':'token '+GH.token}
+    })
+    .then(function(r){if(!r.ok) return null;return r.json();})
+    .then(function(data){
+      if(!data) return;
+      // Si el SHA cambió desde la última vez que cargamos, hay algo nuevo
+      if(_lastSha && data.sha !== _lastSha && !_hasPendingChanges){
+        _lastSha = data.sha;
+        // Bajar el contenido completo y aplicarlo
+        var json=decodeURIComponent(escape(atob(data.content.replace(/\n/g,''))));
+        var st=JSON.parse(json);
+        // Solo actualizar si el savedAt es más nuevo que lo que tenemos
+        if(st.savedAt && st.savedAt > _lastKnownSavedAt){
+          _lastKnownSavedAt = st.savedAt;
+          applyLoadedData(st);
+          buildRings();
+          // renderAll SIN marcar cambios pendientes
+          renderSucMarkers();renderRingPolys();renderLegend();
+          renderRT();updCalcSel();updStats();renderSucList();updFBox();
+          lsSave();
+          setSyncStatus('ok','Actualizado · '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+          showToast('🔄 Config actualizada por otro dispositivo');
+        }
       }
-    });
+    })
+    .catch(function(){});
   }, 30000);
 }
 
@@ -936,6 +996,7 @@ function initSync(){
   // 2. Cargar desde GitHub (puede actualizar encima del cache)
   ghLoad(function(st){
     if(st){
+      _lastKnownSavedAt = st.savedAt || 0;
       var applied = applyLoadedData(st);
       if(applied){ buildRings(); renderAll(); }
       else{ if(!cached){ buildRings(); renderAll(); } }
@@ -951,7 +1012,8 @@ map.on('moveend zoomend', function(){ lsSave(); }); // vista solo local
 function renderAll(){
   renderSucMarkers();renderRingPolys();renderLegend();
   renderRT();updCalcSel();updStats();renderSucList();updFBox();
-  scheduleSave(); // guarda en GitHub con debounce
+  lsSave(); // solo cache local, NO guarda en GitHub
+  markPendingChanges(); // avisa que hay cambios sin guardar
 }
 
 // PDF
