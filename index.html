@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yesplack · Fletes GBA</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#0f1117;--surface:#1a1d2e;--surface2:#222636;--border:#2e334a;--text:#e8eaf0;--muted:#7a85a0;--accent:#f59e0b;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0 18px;display:flex;align-items:center;justify-content:space-between;height:52px;flex-shrink:0;z-index:1000}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-badge{background:var(--accent);color:#0f1117;font-weight:900;font-size:11px;padding:3px 8px;border-radius:3px;letter-spacing:1.5px}
+.logo-title{color:var(--text);font-size:14px;font-weight:700}
+.logo-sub{color:var(--muted);font-size:9px;margin-top:1px}
+.hbtns{display:flex;gap:7px}
+.btn{font-size:10px;font-weight:700;padding:6px 13px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--accent);color:#0f1117}.btn-primary:hover{background:#fbbf24}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-purple{background:#8b5cf6;color:#fff}.btn-purple:hover{background:#7c3aed}
+.app-body{display:flex;flex:1;overflow:hidden}
+#map{flex:1;z-index:1;position:relative}
+.leaflet-tile-pane{opacity:.88}
+.leaflet-container{background:#1a1f2e}
+.leaflet-control-zoom a{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
+.leaflet-control-attribution{background:rgba(15,17,23,.7)!important;color:var(--muted)!important;font-size:9px!important}
+.leaflet-control-attribution a{color:var(--accent)!important}
+.side{width:310px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.hit-card{background:var(--surface2);border-bottom:2px solid var(--accent);padding:11px 14px;flex-shrink:0;display:none}
+.hit-card.open{display:block}
+.hit-top{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.hit-sw{width:13px;height:13px;border-radius:50%;flex-shrink:0}
+.hit-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.hit-suc{font-size:9px;color:#a78bfa;margin-left:2px;font-weight:600}
+.hit-prices{display:flex;gap:16px;align-items:flex-end}
+.hp-main{font-size:26px;font-weight:900;color:var(--accent);line-height:1}
+.hp-iva{font-size:14px;font-weight:700;color:#4ade80;line-height:1}
+.hp-lbl{font-size:8px;color:var(--muted);margin-bottom:2px}
+.hit-dist{font-size:9px;color:#60a5fa;margin-top:4px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat-cell{padding:7px 9px;border-right:1px solid var(--border)}
+.stat-cell:last-child{border-right:none}
+.stat-lbl{font-size:7.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.stat-val{font-size:13px;font-weight:800}
+.c-blue{color:#60a5fa}.c-purple{color:#a78bfa}.c-green{color:#4ade80}.c-red{color:#f87171}
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:7px 4px;font-size:9px;font-weight:700;color:var(--muted);text-align:center;cursor:pointer;border-bottom:2px solid transparent;text-transform:uppercase;letter-spacing:.5px;transition:all .15s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(245,158,11,.06)}
+.tab-panel{display:none;flex:1;overflow-y:auto;flex-direction:column}
+.tab-panel.active{display:flex}
+.pp{padding:11px 13px}
+.slbl{font-size:8.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+.cbox{background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:11px;border:1px solid var(--border)}
+.chint{font-size:9px;color:var(--muted);margin-bottom:7px;line-height:1.5}
+.cname{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.cdist{font-size:9px;color:#60a5fa;margin-bottom:7px}
+.cprices{display:flex;gap:13px}
+.cpm{font-size:21px;font-weight:900;color:var(--accent);line-height:1}
+.cpi{font-size:13px;font-weight:700;color:#4ade80;line-height:1}
+.cpl{font-size:7.5px;color:var(--muted)}
+.fr{display:flex;gap:6px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:3px;flex:1}
+.fl{font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fi{border:1px solid var(--border);border-radius:5px;padding:5px 7px;font-size:11px;outline:none;font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);width:100%}
+.fi:focus{border-color:var(--accent)}
+.cb{background:var(--bg);border:1.5px solid var(--accent);border-radius:7px;padding:5px 8px;text-align:center;min-width:82px;flex-shrink:0}
+.cbl{font-size:7px;color:var(--muted);text-transform:uppercase}
+.cbv{font-size:14px;font-weight:800;color:var(--accent)}
+.cbi{font-size:10px;font-weight:700;color:#4ade80}
+.cdet{margin-top:5px;font-size:9px;color:var(--muted);line-height:1.5;display:none}
+.rt{width:100%;border-collapse:collapse}
+.rt th{font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:5px 6px;text-align:left;border-bottom:1px solid var(--border)}
+.rt td{padding:5px 6px;border-bottom:1px solid rgba(46,51,74,.4);font-size:10px;color:var(--text);vertical-align:middle}
+.rt tr:hover td{background:rgba(245,158,11,.04)}
+.rsp{width:11px;height:11px;border-radius:50%;display:inline-block;vertical-align:middle}
+.rpi{width:54px;padding:3px 5px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--accent);font-family:'Segoe UI',Arial,sans-serif;outline:none;text-align:center}
+.rpi:focus{border-color:var(--accent)}
+.cfgb{background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:9px}
+.cfgt{font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+.cfgr{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.cfgl{font-size:9px;color:var(--muted);flex:1;line-height:1.3}
+.cfgi{width:60px;padding:4px 6px;font-size:11px;font-weight:700;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;outline:none;text-align:center;flex-shrink:0}
+.cfgi:focus{border-color:var(--accent)}
+.fbox{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:6px;padding:8px 10px;font-size:9px;color:#fbbf24;line-height:1.7;margin-top:4px;white-space:pre-line}
+.slst{display:flex;flex-direction:column;gap:5px}
+.si{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 10px}
+.sdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.snfo{flex:1;min-width:0}
+.sname{font-size:11px;font-weight:700;color:var(--text)}
+.saddr{font-size:8.5px;color:var(--muted)}
+.sdel{background:transparent;border:none;color:#f87171;cursor:pointer;font-size:14px;padding:2px 4px;flex-shrink:0;border-radius:4px}
+.sdel:hover{background:rgba(239,68,68,.15)}
+.asf{background:var(--surface2);border:1px dashed rgba(139,92,246,.5);border-radius:7px;padding:9px;margin-top:7px;display:none}
+.asf.open{display:block}
+.brow{display:flex;gap:5px;margin-top:5px}
+/* TOOLTIP FLOTANTE */
+.ftip{position:absolute;pointer-events:none;z-index:500;opacity:0;transition:opacity .1s;min-width:155px}
+.ftip.show{opacity:1}
+.fti{background:rgba(10,13,20,.93);border:2px solid #666;border-radius:9px;padding:9px 12px;backdrop-filter:blur(8px)}
+.ftr{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;display:flex;align-items:center;gap:5px}
+.ftp{font-size:20px;font-weight:900;color:var(--accent);line-height:1.1}
+.fti2{font-size:10px;font-weight:700;color:#4ade80}
+.ftd{font-size:8.5px;color:#60a5fa;margin-top:3px}
+.fts{font-size:8.5px;color:#a78bfa;margin-top:1px}
+/* LEGEND */
+.lgnd{position:absolute;bottom:20px;left:12px;z-index:400;background:rgba(10,13,20,.87);border:1px solid var(--border);border-radius:9px;padding:9px 12px;backdrop-filter:blur(8px);min-width:165px}
+.lgnd-t{font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.li{display:flex;align-items:center;gap:7px;margin-bottom:4px;font-size:9px;color:#c8cfe0}
+.lsw{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.pbanner{position:absolute;top:0;left:0;right:0;background:rgba(139,92,246,.93);color:#fff;font-size:11px;font-weight:700;padding:9px 14px;text-align:center;z-index:600;display:none;pointer-events:none}
+.pbanner.on{display:block}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface);color:#4ade80;border:1.5px solid #22c55e;padding:8px 18px;border-radius:7px;font-size:11px;font-weight:700;opacity:0;transition:all .2s;z-index:9999;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{color:#f87171;border-color:#ef4444}
+.sm{border-radius:50%;width:27px;height:27px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:2.5px solid #fff;box-shadow:0 0 0 3px rgba(245,158,11,.3),0 3px 10px rgba(0,0,0,.5)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <span class="logo-badge">YES</span>
+    <div>
+      <div class="logo-title">Fletes GBA — Radios por Sucursal</div>
+      <div class="logo-sub" id="headerSub">Cargando...</div>
+    </div>
+  </div>
+  <div class="hbtns">
+    <button class="btn btn-ghost" onclick="exportPDF()">⬇ PDF</button>
+  </div>
+</header>
+
+<div class="app-body">
+  <div style="position:relative;flex:1;display:flex;overflow:hidden">
+    <div id="map" style="flex:1"></div>
+    <div class="pbanner" id="pb">📍 Clic en el mapa para ubicar la sucursal · ESC cancela</div>
+    <!-- Tooltip flotante -->
+    <div class="ftip" id="ftip">
+      <div class="fti" id="ftiInner">
+        <div class="ftr"><span class="rsp" id="ftSw"></span><span id="ftRing">—</span></div>
+        <div class="ftp" id="ftP">—</div>
+        <div class="fti2" id="ftI">—</div>
+        <div class="ftd" id="ftD">—</div>
+        <div class="fts" id="ftS">—</div>
+      </div>
+    </div>
+    <!-- Legend -->
+    <div class="lgnd" id="lgnd">
+      <div class="lgnd-t">Desde sucursal más cercana</div>
+      <div id="lgndItems"></div>
+      <div class="li" style="margin-top:5px;border-top:1px solid var(--border);padding-top:5px">
+        <div class="lsw" style="background:var(--accent);box-shadow:0 0 5px rgba(245,158,11,.6)"></div>✦ Sucursal Yesplack
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="hit-card" id="hc">
+      <div class="hit-top">
+        <span class="hit-sw" id="hSw"></span>
+        <span class="hit-lbl" id="hLbl">—</span>
+        <span class="hit-suc" id="hSuc"></span>
+      </div>
+      <div class="hit-prices">
+        <div><div class="hp-lbl">S/IVA</div><div class="hp-main" id="hP">—</div></div>
+        <div><div class="hp-lbl">C/IVA <span id="hIvaPct">21</span>%</div><div class="hp-iva" id="hI">—</div></div>
+      </div>
+      <div class="hit-dist" id="hD">—</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-cell"><div class="stat-lbl">Radios</div><div class="stat-val c-blue" id="sR">—</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Sucursales</div><div class="stat-val c-purple" id="sS">—</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Mínimo</div><div class="stat-val c-green" id="sMn">—</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Máximo</div><div class="stat-val c-red" id="sMx">—</div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tab-calc" onclick="ST('calc')">Calculadora</div>
+      <div class="tab" id="tab-radios" onclick="ST('radios')">Precios</div>
+      <div class="tab" id="tab-config" onclick="ST('config')">⚙ Config</div>
+    </div>
+    <div class="tab-panel active" id="panel-calc">
+      <div class="pp">
+        <div class="slbl">Consulta rápida</div>
+        <div class="cbox">
+          <div class="chint">Mové el mouse sobre el mapa para ver el precio en tiempo real.</div>
+          <div class="cname" id="ckName">— Mové el mouse —</div>
+          <div class="cdist" id="ckDist"></div>
+          <div class="cprices">
+            <div><div class="cpl">S/IVA</div><div class="cpm" id="ckP">—</div></div>
+            <div><div class="cpl">C/IVA</div><div class="cpi" id="ckI">—</div></div>
+          </div>
+        </div>
+        <div class="slbl">Calcular viajes</div>
+        <div class="fr">
+          <div class="fg" style="flex:2"><span class="fl">Zona (radio)</span><select class="fi" id="cZ" onchange="calcF()"><option value="">— Radio —</option></select></div>
+          <div class="fg" style="max-width:50px"><span class="fl">Viajes</span><input class="fi" type="number" id="cQ" value="1" min="1" oninput="calcF()"></div>
+          <div class="cb"><div class="cbl">s/IVA</div><div class="cbv" id="cT">$—</div><div class="cbi" id="cTi">—</div><div class="cbl">c/IVA</div></div>
+        </div>
+        <div class="cdet" id="cDet"></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="panel-radios">
+      <div class="pp">
+        <div class="slbl">Precios por radio</div>
+        <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.5">Cada precio aplica desde la sucursal más cercana al punto de entrega.</div>
+        <table class="rt">
+          <thead><tr><th></th><th>Radio</th><th>Km</th><th>$k s/IVA</th><th>c/IVA</th></tr></thead>
+          <tbody id="rtB"></tbody>
+        </table>
+        <button class="btn btn-primary" style="width:100%;margin-top:9px;justify-content:center" onclick="applyP()">✓ Aplicar precios</button>
+      </div>
+    </div>
+    <div class="tab-panel" id="panel-config">
+      <div class="pp" style="padding-bottom:16px">
+        <div class="cfgb">
+          <div class="cfgt">🎯 Parámetros de radio</div>
+          <div class="cfgr"><span class="cfgl">Radio inicial (km)</span><input type="number" class="cfgi" id="cR0" value="5" min="1" max="50"></div>
+          <div class="cfgr"><span class="cfgl">Incremento por anillo (km)</span><input type="number" class="cfgi" id="cDR" value="1" min="1" max="20"></div>
+          <div class="cfgr"><span class="cfgl">Cantidad de anillos</span><input type="number" class="cfgi" id="cN" value="14" min="3" max="25"></div>
+        </div>
+        <div class="cfgb">
+          <div class="cfgt">💰 Tarifa</div>
+          <div class="cfgr"><span class="cfgl">Precio 1er radio ($k s/IVA)</span><input type="number" class="cfgi" id="cP0" value="30" min="5" max="200" step="5"></div>
+          <div class="cfgr"><span class="cfgl">Incremento por anillo ($k)</span><input type="number" class="cfgi" id="cDP" value="5" min="1" max="50"></div>
+          <div class="fbox" id="fBox">—</div>
+          <button class="btn btn-primary" style="width:100%;margin-top:9px;justify-content:center" onclick="regen()">↺ Regenerar radios</button>
+        </div>
+        <div class="cfgb">
+          <div class="cfgt">🧾 IVA</div>
+          <div class="cfgr"><span class="cfgl">Alícuota (%)</span><input type="number" class="cfgi" id="cIva" value="21" min="0" max="30"></div>
+        </div>
+        <div class="cfgb" style="border:1px solid rgba(239,68,68,.25)">
+          <div class="cfgt" style="color:#f87171">⚠ Restablecer</div>
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.4">Vuelve a los valores por defecto y borra todos los cambios guardados.</div>
+          <button class="btn btn-ghost" style="width:100%;justify-content:center;border-color:rgba(239,68,68,.35);color:#f87171" onclick="resetState()">↺ Restablecer valores</button>
+        </div>
+        <div class="cfgb">
+          <div class="cfgt">📦 Sucursales</div>
+          <div class="slst" id="sucList"></div>
+          <button class="btn btn-purple" style="width:100%;margin-top:9px;justify-content:center" onclick="togAS()">+ Agregar sucursal</button>
+          <div class="asf" id="asf">
+            <div style="margin-bottom:5px"><div class="fl" style="margin-bottom:3px">Nombre</div><input class="fi" type="text" id="sN" placeholder="Ej: Tigre Norte"></div>
+            <div style="margin-bottom:5px"><div class="fl" style="margin-bottom:3px">Dirección</div><input class="fi" type="text" id="sA" placeholder="Calle 123, Localidad"></div>
+            <div class="brow">
+              <button class="btn btn-purple" style="flex:1;font-size:10px;padding:5px" onclick="startPl()">📍 Clic en mapa</button>
+              <button class="btn btn-ghost" style="font-size:10px;padding:5px" onclick="togAS(true)">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// PALETA
+// ═══════════════════════════════════════════════════════
+var PAL=['#00e676','#39e03a','#76d900','#aecf00','#ddc300',
+         '#ffaa00','#ff8400','#ff5e00','#ff3300','#e50000',
+         '#c00000','#9b0000','#780000','#560000','#380000',
+         '#200000','#140000','#0c0000','#060000','#020000'];
+
+var cfg={r0:5,dr:1,n:14,p0:30,dp:5,iva:21};
+var rings=[];
+var sucs=[
+  {id:'s1',name:'Benavidez',addr:'Diego Palma 365, Tigre',lat:-34.400,lng:-58.673,col:'#f59e0b'},
+  {id:'s2',name:'Matheu',   addr:'Lavalle 211, Escobar',  lat:-34.353,lng:-58.805,col:'#a78bfa'}
+];
+var SCOLS=['#f59e0b','#a78bfa','#4ade80','#60a5fa','#f87171','#fb923c'];
+var sucMLayers={}, polyLayers=[], labelLayers=[];
+var nextSid=10, placeMode=false, pendSuc=null;
+
+function dkm(a,b,c,d){
+  var R=6371,p=Math.PI/180,dl=(c-a)*p,dn=(d-b)*p;
+  var x=Math.sin(dl/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(dn/2)**2;
+  return R*2*Math.asin(Math.sqrt(x));
+}
+function nearest(lat,lon){
+  var best=sucs[0],bd=Infinity;
+  sucs.forEach(function(s){var d=dkm(s.lat,s.lng,lat,lon);if(d<bd){bd=d;best=s;}});
+  return {suc:best,dist:Math.round(bd*10)/10};
+}
+function ringFor(d){for(var i=0;i<rings.length;i++)if(d<=rings[i].km)return rings[i];return rings[rings.length-1];}
+function ivaOf(p){return Math.round(p*(1+cfg.iva/100));}
+function fP(p){return '$'+p+'.000';}
+function fPi(p){return '$'+ivaOf(p)+'.000';}
+function hRgb(h){var r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);return r?[parseInt(r[1],16),parseInt(r[2],16),parseInt(r[3],16)]:null;}
+
+function buildRings(){
+  rings=[];
+  var n=Math.min(cfg.n,PAL.length);
+  for(var i=0;i<n;i++){
+    var km=cfg.r0+i*cfg.dr;
+    var price=cfg.p0+i*cfg.dp;
+    var lbl=i===0?'0–'+km+'km':(cfg.r0+(i-1)*cfg.dr)+'–'+km+'km';
+    rings.push({idx:i,km:km,price:price,color:PAL[i%PAL.length],label:lbl});
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — Leaflet con SVG renderer
+// Usamos L.SVG y generamos paths SVG correctamente
+// posicionados dentro del pane de Leaflet
+// ═══════════════════════════════════════════════════════
+var map=L.map('map',{zoomControl:true,renderer:L.svg()}).setView([-34.52,-58.72],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map);
+
+var sIcon=function(col){
+  return L.divIcon({className:'',html:'<div class="sm" style="background:'+col+';color:#0f1117">Y</div>',iconSize:[27,27],iconAnchor:[13,13]});
+};
+
+function renderSucMarkers(){
+  Object.values(sucMLayers).forEach(function(l){map.removeLayer(l);});sucMLayers={};
+  sucs.forEach(function(s){
+    var m=L.marker([s.lat,s.lng],{icon:sIcon(s.col||'#f59e0b'),zIndexOffset:3000}).addTo(map);
+    m.bindPopup('<div style="padding:8px 12px;background:#1a1d2e;min-width:155px"><b style="color:'+(s.col||'#f59e0b')+'">📦 '+s.name+'</b><div style="font-size:9px;color:#7a85a0;margin-top:2px">'+s.addr+'</div></div>',{closeButton:false});
+    sucMLayers[s.id]=m;
+  });
+}
+
+// ─── Voronoi rings como polígonos Leaflet ─────────────
+// Para cada sucursal + cada ring:
+// Generamos puntos en el perímetro del círculo
+// pero solo los que pertenecen al dominio Voronoi de esa sucursal.
+// Los conectamos como polyline → cada polyline es un arco.
+// Usamos L.polyline en lugar de Canvas para sincronización perfecta.
+
+function renderRingPolys(){
+  polyLayers.forEach(function(l){map.removeLayer(l);});polyLayers=[];
+  labelLayers.forEach(function(l){map.removeLayer(l);});labelLayers=[];
+  if(!rings.length||!sucs.length) return;
+
+  var STEPS=720; // puntos por círculo completo
+
+  sucs.forEach(function(suc){
+    // Relleno suave de la zona de dominio
+    var domainPts=[];
+    var MAX_KM=rings[rings.length-1].km+5;
+    for(var a=0;a<STEPS;a++){
+      var ang=(a/STEPS)*2*Math.PI;
+      var lat=suc.lat+(MAX_KM/111.32)*Math.sin(ang);
+      var lng=suc.lng+(MAX_KM/(111.32*Math.cos(suc.lat*Math.PI/180)))*Math.cos(ang);
+      var res=nearest(lat,lng);
+      if(res.suc.id===suc.id) domainPts.push([lat,lng]);
+    }
+    if(domainPts.length>2){
+      var fillCol=hRgb(suc.col||'#f59e0b');
+      var fillHex=suc.col||'#f59e0b';
+      var fp=L.polygon(domainPts,{
+        color:'transparent',weight:0,
+        fillColor:fillHex,fillOpacity:0.04,
+        interactive:false
+      }).addTo(map);
+      polyLayers.push(fp);
+    }
+
+    // Líneas de anillo (isolíneas de precio)
+    rings.forEach(function(ring){
+      // Generamos segmentos de arco dentro del dominio de esta sucursal
+      var segments=[];
+      var current=[];
+      for(var a=0;a<=STEPS;a++){
+        var ang=(a/STEPS)*2*Math.PI;
+        var latR=suc.lat+(ring.km/111.32)*Math.sin(ang);
+        var lngR=suc.lng+(ring.km/(111.32*Math.cos(suc.lat*Math.PI/180)))*Math.cos(ang);
+        // ¿Esta sucursal es la más cercana a este punto?
+        var res=nearest(latR,lngR);
+        var isOwn=(res.suc.id===suc.id);
+        if(isOwn){
+          current.push([latR,lngR]);
+        } else {
+          if(current.length>1){segments.push(current.slice());}
+          current=[];
+        }
+      }
+      if(current.length>1) segments.push(current);
+
+      segments.forEach(function(seg){
+        var pl=L.polyline(seg,{
+          color:ring.color,
+          weight:2,
+          opacity:0.85,
+          interactive:false,
+          smoothFactor:0
+        }).addTo(map);
+        polyLayers.push(pl);
+      });
+
+      // Label en el punto norte de esta sucursal (si está en dominio)
+      var latLbl=suc.lat+(ring.km/111.32);
+      var lngLbl=suc.lng;
+      var checkRes=nearest(latLbl,lngLbl);
+      if(checkRes.suc.id===suc.id && ring.idx%2===0){
+        var lbl=L.marker([latLbl,lngLbl],{
+          icon:L.divIcon({
+            className:'',
+            html:'<div style="font-size:9px;font-weight:800;color:'+ring.color+';text-shadow:0 0 5px rgba(0,0,0,.9);white-space:nowrap;pointer-events:none;background:rgba(0,0,0,.5);padding:1px 5px;border-radius:3px">'+ring.km+'km · '+fP(ring.price)+'</div>',
+            iconSize:[null,null],iconAnchor:[28,8]
+          }),
+          zIndexOffset:900,interactive:false
+        }).addTo(map);
+        labelLayers.push(lbl);
+      }
+    });
+
+    // Línea de bisectriz entre pares de sucursales
+    if(sucs.length>=2){
+      sucs.forEach(function(other){
+        if(other.id<=suc.id) return;
+        // Trazar la isolínea donde dist(suc)==dist(other)
+        var bisPts=[];
+        for(var a=0;a<=STEPS;a++){
+          var ang=(a/STEPS)*2*Math.PI;
+          var R=rings[rings.length-1].km;
+          // Muestreamos una grilla amplia
+          var latB=((suc.lat+other.lat)/2)+(R/111.32)*Math.sin(ang)*2;
+          var lngB=((suc.lng+other.lng)/2)+(R/(111.32*Math.cos(suc.lat*Math.PI/180)))*Math.cos(ang)*2;
+        }
+        // Línea recta simplificada: extendemos la bisectriz perpendicular
+        var midLat=(suc.lat+other.lat)/2;
+        var midLng=(suc.lng+other.lng)/2;
+        var dlat=other.lat-suc.lat;
+        var dlng=other.lng-suc.lng;
+        var perp={lat:-dlng,lng:dlat}; // perpendicular
+        var ext=2;
+        var bisLine=L.polyline([
+          [midLat-perp.lat*ext,midLng-perp.lng*ext],
+          [midLat+perp.lat*ext,midLng+perp.lng*ext]
+        ],{color:'rgba(255,255,255,0.3)',weight:1.5,dashArray:'7,6',interactive:false}).addTo(map);
+        polyLayers.push(bisLine);
+      });
+    }
+  });
+}
+
+// ─── Interacción ──────────────────────────────────────
+map.on('moveend zoomend',function(){saveState();});
+map.on('mousemove',function(e){
+  if(placeMode) return;
+  var res=nearest(e.latlng.lat,e.latlng.lng);
+  var ring=ringFor(res.dist);
+  showFtip(e.originalEvent,ring,res.dist,res.suc);
+  updateHC(ring,res.dist,res.suc);
+  updCK(ring,res.dist,res.suc);
+});
+map.on('click',function(e){
+  if(placeMode){placeSucAt(e);return;}
+});
+map.on('mouseout',function(){hideFtip();});
+
+function showFtip(ev,ring,dist,suc){
+  var ft=document.getElementById('ftip');
+  var fi=document.getElementById('ftiInner');
+  fi.style.borderColor=ring.color;
+  document.getElementById('ftSw').style.cssText='background:'+ring.color+';box-shadow:0 0 5px '+ring.color;
+  document.getElementById('ftRing').textContent=ring.label;
+  document.getElementById('ftP').textContent=fP(ring.price);
+  document.getElementById('ftI').textContent=fPi(ring.price)+' c/IVA '+cfg.iva+'%';
+  document.getElementById('ftD').textContent='~'+dist+' km · sucursal más cercana';
+  document.getElementById('ftS').textContent='Desde: '+suc.name;
+  var mp=document.getElementById('map').getBoundingClientRect();
+  var x=ev.clientX-mp.left+18,y=ev.clientY-mp.top-105;
+  if(x+175>mp.width) x=ev.clientX-mp.left-190;
+  ft.style.left=Math.max(4,x)+'px';ft.style.top=Math.max(4,y)+'px';
+  ft.classList.add('show');
+}
+function hideFtip(){document.getElementById('ftip').classList.remove('show');}
+function updateHC(ring,dist,suc){
+  document.getElementById('hc').classList.add('open');
+  document.getElementById('hSw').style.cssText='background:'+ring.color+';box-shadow:0 0 5px '+ring.color;
+  document.getElementById('hLbl').textContent=ring.label;
+  document.getElementById('hSuc').textContent='→ '+suc.name;
+  document.getElementById('hP').textContent=fP(ring.price);
+  document.getElementById('hI').textContent=fPi(ring.price);
+  document.getElementById('hIvaPct').textContent=cfg.iva;
+  document.getElementById('hD').textContent='~'+dist+' km · '+suc.addr;
+}
+function updCK(ring,dist,suc){
+  document.getElementById('ckName').textContent=ring.label+' · '+suc.name;
+  document.getElementById('ckDist').textContent='~'+dist+' km · '+suc.addr;
+  document.getElementById('ckP').textContent=fP(ring.price);
+  document.getElementById('ckI').textContent=fPi(ring.price);
+}
+
+// ─── Legend ───────────────────────────────────────────
+function renderLegend(){
+  var h='';
+  rings.forEach(function(r,i){
+    if(i===0||i%2===0||i===rings.length-1){
+      h+='<div class="li"><div class="lsw" style="background:'+r.color+';box-shadow:0 0 4px '+r.color+'"></div>'+fP(r.price)+' · '+r.label+'</div>';
+    }
+  });
+  document.getElementById('lgndItems').innerHTML=h;
+}
+
+// ─── Rings table ──────────────────────────────────────
+function renderRT(){
+  var h='';
+  rings.forEach(function(r,i){
+    h+='<tr>'
+      +'<td><span class="rsp" style="background:'+r.color+';box-shadow:0 0 4px '+r.color+'"></span></td>'
+      +'<td style="font-weight:600">'+r.label+'</td>'
+      +'<td style="color:var(--muted)">'+r.km+'km</td>'
+      +'<td><input class="rpi" type="number" value="'+r.price+'" min="5" step="5" id="rp'+i+'" data-i="'+i+'"></td>'
+      +'<td style="color:#4ade80;font-size:9px" id="rc'+i+'">'+fPi(r.price)+'</td>'
+      +'</tr>';
+  });
+  document.getElementById('rtB').innerHTML=h;
+  document.querySelectorAll('.rpi').forEach(function(inp){
+    inp.addEventListener('input',function(){
+      var idx=+this.getAttribute('data-i'),p=+this.value||0;
+      var c=document.getElementById('rc'+idx);if(c)c.textContent=fPi(p);
+    });
+  });
+}
+function applyP(){
+  rings.forEach(function(r,i){var inp=document.getElementById('rp'+i);if(inp){var v=+inp.value;if(v>0)r.price=v;}});
+  renderLegend();updStats();updCalcSel();renderRT();
+  showToast('✓ Precios actualizados');
+}
+
+// ─── Formula ──────────────────────────────────────────
+function updFBox(){
+  var r0=+document.getElementById('cR0').value||5;
+  var dr=+document.getElementById('cDR').value||1;
+  var n=+document.getElementById('cN').value||14;
+  var p0=+document.getElementById('cP0').value||30;
+  var dp=+document.getElementById('cDP').value||5;
+  var last=r0+(n-1)*dr,lastP=p0+(n-1)*dp;
+  document.getElementById('fBox').textContent=
+    'Anillo 1: $'+p0+'k hasta '+r0+'km\nAnillo 2: $'+(p0+dp)+'k hasta '+(r0+dr)+'km\n...\nAnillo '+n+': $'+lastP+'k hasta '+last+'km';
+  document.getElementById('headerSub').textContent=
+    '$'+p0+'k hasta '+r0+'km · +$'+dp+'k c/'+dr+'km · IVA '+(document.getElementById('cIva').value||21)+'% · '+sucs.length+' sucursales';
+}
+['cR0','cDR','cN','cP0','cDP','cIva'].forEach(function(id){
+  var el=document.getElementById(id);if(el)el.addEventListener('input',updFBox);
+});
+function regen(){
+  cfg.r0=+document.getElementById('cR0').value||5;
+  cfg.dr=+document.getElementById('cDR').value||1;
+  cfg.n=+document.getElementById('cN').value||14;
+  cfg.p0=+document.getElementById('cP0').value||30;
+  cfg.dp=+document.getElementById('cDP').value||5;
+  cfg.iva=+document.getElementById('cIva').value||21;
+  buildRings();renderAll();
+  showToast('✓ '+rings.length+' radios regenerados');
+}
+
+// ─── Stats ────────────────────────────────────────────
+function updStats(){
+  var p=rings.map(function(r){return r.price;});
+  document.getElementById('sR').textContent=rings.length;
+  document.getElementById('sS').textContent=sucs.length;
+  document.getElementById('sMn').textContent='$'+Math.min.apply(null,p)+'k';
+  document.getElementById('sMx').textContent='$'+Math.max.apply(null,p)+'k';
+}
+function updCalcSel(){
+  var sel=document.getElementById('cZ'),cur=sel.value;
+  sel.innerHTML='<option value="">— Radio —</option>';
+  rings.forEach(function(r,i){
+    var o=document.createElement('option');o.value=i;o.textContent=r.label+' — '+fP(r.price);
+    if(String(i)===cur)o.selected=true;sel.appendChild(o);
+  });calcF();
+}
+function calcF(){
+  var idx=parseInt(document.getElementById('cZ').value);
+  var qty=parseInt(document.getElementById('cQ').value)||1;
+  var r=rings[idx];
+  var t=document.getElementById('cT'),ti=document.getElementById('cTi'),det=document.getElementById('cDet');
+  if(r!=null){
+    t.textContent='$'+(r.price*qty).toLocaleString('es-AR')+'.000';
+    ti.textContent='$'+(ivaOf(r.price)*qty).toLocaleString('es-AR')+'.000';
+    det.style.display='block';det.textContent=fP(r.price)+' × '+qty+(qty>1?' viajes':' viaje');
+  }else{t.textContent='$—';ti.textContent='';det.style.display='none';}
+}
+function ST(t){
+  ['calc','radios','config'].forEach(function(id){
+    document.getElementById('tab-'+id).classList.toggle('active',id===t);
+    document.getElementById('panel-'+id).classList.toggle('active',id===t);
+  });
+}
+
+// ─── Sucursales ───────────────────────────────────────
+function renderSucList(){
+  var h='';
+  sucs.forEach(function(s,i){
+    var col=s.col||SCOLS[i%SCOLS.length];
+    h+='<div class="si">'
+      +'<div class="sdot" style="background:'+col+';box-shadow:0 0 5px '+col+'55"></div>'
+      +'<div class="snfo"><div class="sname">'+s.name+'</div><div class="saddr">'+s.addr+'</div></div>'
+      +(sucs.length>1?'<button class="sdel" onclick="delS(\''+s.id+'\')" title="Eliminar">×</button>':'')
+      +'</div>';
+  });document.getElementById('sucList').innerHTML=h;
+}
+function delS(id){
+  if(sucs.length<=1){showToast('Mínimo 1 sucursal','err');return;}
+  if(!confirm('¿Eliminar esta sucursal?'))return;
+  sucs=sucs.filter(function(s){return s.id!==id;});renderAll();showToast('Sucursal eliminada ✓');
+}
+function togAS(close){
+  var f=document.getElementById('asf');
+  if(close===true){f.classList.remove('open');return;}
+  f.classList.toggle('open');
+  if(f.classList.contains('open'))setTimeout(function(){document.getElementById('sN').focus();},50);
+}
+function startPl(){
+  var name=document.getElementById('sN').value.trim();
+  if(!name){showToast('Ingresá el nombre','err');return;}
+  var idx=sucs.length;
+  pendSuc={id:'s'+nextSid++,name:name,addr:document.getElementById('sA').value.trim()||'Sin dirección',col:SCOLS[idx%SCOLS.length]};
+  placeMode=true;map.getContainer().style.cursor='crosshair';
+  document.getElementById('pb').classList.add('on');showToast('Clic en el mapa para ubicar "'+name+'"');
+}
+function placeSucAt(e){
+  if(!pendSuc||!placeMode)return;
+  pendSuc.lat=e.latlng.lat;pendSuc.lng=e.latlng.lng;
+  sucs.push(pendSuc);pendSuc=null;placeMode=false;
+  map.getContainer().style.cursor='';document.getElementById('pb').classList.remove('on');
+  togAS(true);document.getElementById('sN').value='';document.getElementById('sA').value='';
+  renderAll();showToast('Sucursal agregada ✓');
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&placeMode){placeMode=false;pendSuc=null;map.getContainer().style.cursor='';document.getElementById('pb').classList.remove('on');}
+});
+
+// ─── PDF ──────────────────────────────────────────────
+function exportPDF(){
+  if(!window.jspdf){showToast('Cargando...','err');return;}
+  var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var W=210,H=297,mg=13;
+  doc.setFillColor(26,35,64);doc.rect(0,0,W,28,'F');
+  doc.setFillColor(245,158,11);doc.rect(mg,4,14,18,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(26,35,64);doc.text('YES',mg+1.2,13.5);
+  doc.setTextColor(255,255,255);doc.setFontSize(11);doc.text('Yesplack · Tarifario de Fletes por Radio',mg+17,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(160,171,192);
+  doc.text('$'+cfg.p0+'.000 hasta '+cfg.r0+'km · +$'+cfg.dp+'.000 c/'+cfg.dr+'km · IVA '+cfg.iva+'%',mg+17,17);
+  var sucStr=sucs.map(function(s){return s.name+' ('+s.addr+')'}).join(' · ');
+  doc.text('Sucursales: '+sucStr,mg+17,22);
+  doc.text(new Date().toLocaleDateString('es-AR'),W-mg,11,{align:'right'});
+  var y=33;
+  doc.setFillColor(26,35,64);doc.rect(mg,y,W-mg*2,6,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(255,255,255);
+  doc.text('Radio',mg+7,y+4);doc.text('Hasta km',mg+62,y+4);doc.text('s/IVA',mg+100,y+4);doc.text('c/IVA '+cfg.iva+'%',W-mg-2,y+4,{align:'right'});y+=6;
+  rings.forEach(function(r,i){
+    if(y>H-18){doc.addPage();y=14;}
+    if(i%2===0){doc.setFillColor(248,250,252);doc.rect(mg,y,W-mg*2,7.5,'F');}
+    var rgb=hRgb(r.color)||[100,180,100];
+    doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.circle(mg+3,y+3.8,2,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(26,35,64);doc.text(r.label,mg+8,y+5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(107,114,128);doc.text(r.km+'km',mg+62,y+5);
+    doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(rgb[0],rgb[1],rgb[2]);
+    doc.text('$'+r.price+'.000',mg+100,y+5);doc.text('$'+ivaOf(r.price)+'.000',W-mg-2,y+5.2,{align:'right'});y+=7.5;
+  });
+  y+=8;
+  doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(107,114,128);doc.text('▸ SUCURSALES',mg,y);y+=5;
+  sucs.forEach(function(s){
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(26,35,64);doc.text('• '+s.name,mg+3,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(107,114,128);doc.text(s.addr,mg+38,y);y+=5;
+  });
+  doc.setFillColor(248,250,252);doc.rect(0,H-11,W,11,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(156,163,175);
+  doc.text('Yesplack · Distribuidora de Drywall y Steel Framing · Zona Norte, Buenos Aires',W/2,H-4,{align:'center'});
+  doc.save('fletes-yesplack-radios.pdf');showToast('PDF descargado ✓');
+}
+
+var _tt;
+function showToast(msg,type){var el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(type==='err'?' err':'');clearTimeout(_tt);_tt=setTimeout(function(){el.classList.remove('show');},3000);}
+
+function renderAll(){
+  renderSucMarkers();
+  renderRingPolys();
+  renderLegend();
+  renderRT();
+  updCalcSel();
+  updStats();
+  renderSucList();
+  updFBox();
+  saveState();
+}
+
+// ─── PERSISTENCIA localStorage ────────────────────────
+var STORAGE_KEY='yesplack_fletes_v1';
+
+function saveState(){
+  try{
+    var state={
+      cfg: cfg,
+      sucs: sucs,
+      rings: rings.map(function(r){return{idx:r.idx,km:r.km,price:r.price,color:r.color,label:r.label};}),
+      mapView: {lat:map.getCenter().lat,lng:map.getCenter().lng,zoom:map.getZoom()}
+    };
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+  }catch(e){}
+}
+
+function loadState(){
+  try{
+    var raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    var state=JSON.parse(raw);
+    // Config
+    if(state.cfg){
+      cfg=state.cfg;
+      document.getElementById('cR0').value=cfg.r0;
+      document.getElementById('cDR').value=cfg.dr;
+      document.getElementById('cN').value=cfg.n;
+      document.getElementById('cP0').value=cfg.p0;
+      document.getElementById('cDP').value=cfg.dp;
+      document.getElementById('cIva').value=cfg.iva;
+    }
+    // Sucursales
+    if(state.sucs&&state.sucs.length>0) sucs=state.sucs;
+    // Rings (precios editados manualmente)
+    if(state.rings&&state.rings.length>0) rings=state.rings;
+    else buildRings();
+    // Vista del mapa
+    if(state.mapView){
+      map.setView([state.mapView.lat,state.mapView.lng],state.mapView.zoom);
+    }
+    return true;
+  }catch(e){return false;}
+}
+
+function resetState(){
+  if(!confirm('¿Restablecer todo a los valores por defecto? Se perderán los cambios guardados.')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
+// Init: cargar estado guardado o arrancar con defaults
+var loaded=loadState();
+if(!loaded) buildRings();
+renderAll();
+if(!loaded) showToast('✓ Mapa listo');
+</script>
+</body>
+</html>
