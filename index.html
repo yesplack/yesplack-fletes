@@ -29,6 +29,8 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
 .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
 .btn-ghost:hover,.btn-ghost:active{border-color:var(--accent);color:var(--accent)}
 .btn-purple{background:#8b5cf6;color:#fff}
+.btn-green{background:#22c55e;color:#fff}
+.btn-green:hover,.btn-green:active{background:#16a34a}
 .btn-danger-ghost{background:transparent;border:1px solid rgba(239,68,68,.35);color:#f87171}
 
 /* FAB y handle — ocultos en desktop */
@@ -191,6 +193,13 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{color:#f87171;border-color:#ef4444}
 @media(max-width:639px){.toast{bottom:calc(48vh + 16px)}}
 
+.sync-badge{font-size:9px;font-weight:700;padding:4px 8px;border-radius:5px;white-space:nowrap;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+.sync-ok{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.3);color:#4ade80}
+.sync-saving{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3);color:#fbbf24}
+.sync-error{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#f87171}
+.sync-offline{background:var(--surface2);border-color:var(--border);color:var(--muted)}
+.sync-loading{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.3);color:#60a5fa}
+@media(max-width:639px){.sync-badge{display:none}}
 .sm{border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;border:2.5px solid #fff;box-shadow:0 0 0 3px rgba(245,158,11,.3),0 3px 10px rgba(0,0,0,.5)}
 </style>
 </head>
@@ -205,6 +214,7 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
     </div>
   </div>
   <div class="hbtns">
+    <span class="sync-badge" id="syncBadge">🔄 Conectando...</span>
     <button class="btn btn-ghost" onclick="exportPDF()">⬇ PDF</button>
   </div>
 </header>
@@ -344,6 +354,26 @@ header{background:var(--surface);border-bottom:2px solid var(--accent);padding:0
           <div class="cfgt" style="color:#f87171">⚠ Restablecer</div>
           <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.4">Vuelve a los valores por defecto y borra los cambios guardados.</div>
           <button class="btn btn-danger-ghost" style="width:100%;justify-content:center;padding:10px" onclick="resetState()">↺ Restablecer valores</button>
+        </div>
+        <!-- SYNC TOKEN -->
+        <div class="cfgb" style="border:1px solid rgba(96,165,250,.25)">
+          <div class="cfgt" style="color:#60a5fa">☁ Sincronización en vivo</div>
+          <div style="font-size:9px;color:var(--muted);margin-bottom:8px;line-height:1.6">
+            Para que los cambios se sincronicen entre PC y celular en tiempo real, ingresá tu <b style="color:var(--text)">GitHub Personal Access Token</b>.<br><br>
+            <b style="color:#fbbf24">Cómo obtenerlo:</b><br>
+            1. github.com → tu avatar → Settings<br>
+            2. Developer settings → Personal access tokens → Fine-grained tokens<br>
+            3. Nuevo token → repo: <b style="color:var(--text)">yesplack-fletes</b><br>
+            4. Permisos: <b style="color:var(--text)">Contents → Read and write</b><br>
+            5. Generá y pegá acá abajo
+          </div>
+          <div style="margin-bottom:7px">
+            <div class="fl" style="margin-bottom:4px">GitHub Token</div>
+            <input class="fi" type="password" id="ghTokenInput" placeholder="github_pat_xxxx..." style="font-size:11px">
+          </div>
+          <div id="syncStatusMsg" style="font-size:9px;color:var(--muted);margin-bottom:7px;display:none"></div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px" onclick="saveToken()">✓ Guardar token y sincronizar</button>
+          <div style="font-size:8.5px;color:var(--muted);margin-top:6px;line-height:1.4">⚠ El token se guarda solo en este dispositivo (localStorage). No se sube al repo.</div>
         </div>
       </div>
     </div>
@@ -684,38 +714,244 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&placeMode){placeMode=false;pendSuc=null;map.getContainer().style.cursor='';document.getElementById('pb').classList.remove('on');}
 });
 
-// ── PERSISTENCIA localStorage ─────────────────────────────
-var SK='yesplack_fletes_v1';
-function saveState(){
-  try{
-    localStorage.setItem(SK,JSON.stringify({
-      cfg:cfg, sucs:sucs,
-      rings:rings.map(function(r){return{idx:r.idx,km:r.km,price:r.price,color:r.color,label:r.label};}),
-      mapView:{lat:map.getCenter().lat,lng:map.getCenter().lng,zoom:map.getZoom()}
-    }));
-  }catch(e){}
+// ══════════════════════════════════════════════════════════
+// SINCRONIZACIÓN EN VIVO — GitHub API
+// Lee/escribe config.json en el repo de GitHub.
+// Todos los dispositivos leen del mismo archivo.
+// ══════════════════════════════════════════════════════════
+
+// ─── CONFIGURÁ ESTOS VALORES ────────────────────────────
+// GITHUB_TOKEN: crealo en github.com → Settings → Developer settings
+//   → Personal access tokens → Fine-grained → repo: yesplack-fletes
+//   → Permisos: Contents (Read and write)
+// Pegalo acá abajo entre las comillas.
+var GH = {
+  owner: 'yesplack',          // tu usuario de GitHub
+  repo:  'yesplack-fletes',   // nombre del repo
+  file:  'config.json',       // archivo donde se guarda la config
+  token: '',                  // ← PEGÁ TU TOKEN ACÁ
+  branch:'main'
+};
+// ────────────────────────────────────────────────────────
+
+var GH_URL = 'https://api.github.com/repos/'+GH.owner+'/'+GH.repo+'/contents/'+GH.file;
+var _lastSha = null;      // SHA del archivo actual (necesario para actualizarlo)
+var _saveTimer = null;    // debounce para no guardar en cada keystroke
+var _syncInterval = null; // polling cada 30s para detectar cambios de otros
+var _lastSaveTime = 0;
+
+// Indicador visual de estado de sync
+function setSyncStatus(status, msg){
+  var el = document.getElementById('syncBadge');
+  if(!el) return;
+  var icons = {saving:'⏳', ok:'✅', error:'❌', loading:'🔄', offline:'💾'};
+  el.textContent = (icons[status]||'') + ' ' + msg;
+  el.className = 'sync-badge sync-'+status;
 }
-function loadState(){
-  try{
-    var raw=localStorage.getItem(SK);if(!raw) return false;
-    var st=JSON.parse(raw);
-    if(st.cfg){cfg=st.cfg;document.getElementById('cR0').value=cfg.r0;document.getElementById('cDR').value=cfg.dr;document.getElementById('cN').value=cfg.n;document.getElementById('cP0').value=cfg.p0;document.getElementById('cDP').value=cfg.dp;document.getElementById('cIva').value=cfg.iva;}
-    if(st.sucs&&st.sucs.length>0) sucs=st.sucs;
-    if(st.rings&&st.rings.length>0) rings=st.rings;else buildRings();
-    if(st.mapView) map.setView([st.mapView.lat,st.mapView.lng],st.mapView.zoom);
-    return true;
-  }catch(e){return false;}
+
+// Construye el objeto a guardar
+function buildSaveData(){
+  return {
+    v: 2,
+    ts: Date.now(),
+    cfg: cfg,
+    sucs: sucs,
+    rings: rings.map(function(r){
+      return {idx:r.idx, km:r.km, price:r.price, color:r.color, label:r.label};
+    })
+  };
 }
+
+// Aplica datos cargados al estado de la app
+function applyLoadedData(st){
+  if(!st||!st.v) return false;
+  if(st.cfg){
+    cfg = st.cfg;
+    var ids=['cR0','cDR','cN','cP0','cDP','cIva'];
+    var vals=[cfg.r0,cfg.dr,cfg.n,cfg.p0,cfg.dp,cfg.iva];
+    ids.forEach(function(id,i){var el=document.getElementById(id);if(el)el.value=vals[i];});
+  }
+  if(st.sucs&&st.sucs.length>0) sucs = st.sucs;
+  if(st.rings&&st.rings.length>0) rings = st.rings;
+  else buildRings();
+  return true;
+}
+
+// ─── LEER desde GitHub ────────────────────────────────────
+function ghLoad(callback){
+  setSyncStatus('loading','Cargando...');
+  fetch(GH_URL+'?ref='+GH.branch+'&t='+Date.now(), {
+    headers: GH.token ? {'Authorization':'token '+GH.token} : {}
+  })
+  .then(function(r){
+    if(r.status===404){setSyncStatus('offline','Sin config remota');callback(null);return null;}
+    if(!r.ok){setSyncStatus('error','Error '+r.status);callback(null);return null;}
+    return r.json();
+  })
+  .then(function(data){
+    if(!data) return;
+    _lastSha = data.sha;
+    var json = decodeURIComponent(escape(atob(data.content.replace(/\n/g,''))));
+    var st = JSON.parse(json);
+    setSyncStatus('ok','Sincronizado · '+ new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+    callback(st);
+  })
+  .catch(function(e){
+    setSyncStatus('offline','Sin conexión');
+    callback(null);
+  });
+}
+
+// ─── GUARDAR en GitHub ────────────────────────────────────
+function ghSave(){
+  if(!GH.token){
+    // Sin token: solo guardar local y avisar
+    lsSave();
+    setSyncStatus('offline','Sin token — solo local');
+    showToast('⚠ Configurá el token GitHub para sincronizar');
+    return;
+  }
+  _lastSaveTime = Date.now();
+  setSyncStatus('saving','Guardando...');
+  var data = buildSaveData();
+  var content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+  var body = {message:'update config '+ new Date().toISOString(), content:content, branch:GH.branch};
+  if(_lastSha) body.sha = _lastSha;
+  fetch(GH_URL, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token '+GH.token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  })
+  .then(function(r){
+    if(!r.ok) throw new Error(r.status);
+    return r.json();
+  })
+  .then(function(resp){
+    _lastSha = resp.content.sha;
+    lsSave(); // también guardar local como cache
+    setSyncStatus('ok','Guardado · '+ new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+    showToast('✓ Cambios guardados en la nube');
+  })
+  .catch(function(e){
+    setSyncStatus('error','Error al guardar');
+    showToast('❌ No se pudo guardar: '+e.message,'err');
+  });
+}
+
+// Debounce — espera 2s sin cambios antes de guardar
+function scheduleSave(){
+  clearTimeout(_saveTimer);
+  setSyncStatus('saving','Guardando en 2s...');
+  _saveTimer = setTimeout(function(){ghSave();}, 2000);
+}
+
+// ─── POLLING cada 30s (detecta cambios de otros dispositivos) ─
+function startPolling(){
+  if(_syncInterval) clearInterval(_syncInterval);
+  _syncInterval = setInterval(function(){
+    // No recargar si acabo de guardar yo mismo (evita loop)
+    if(Date.now() - _lastSaveTime < 10000) return;
+    if(!GH.token) return;
+    ghLoad(function(st){
+      if(!st) return;
+      var applied = applyLoadedData(st);
+      if(applied){
+        buildRings(); // solo si vienen rings vacíos
+        renderAll();
+      }
+    });
+  }, 30000);
+}
+
+// ─── localStorage como cache offline ─────────────────────
+var SK='yesplack_fletes_v2';
+function lsSave(){
+  try{localStorage.setItem(SK,JSON.stringify(buildSaveData()));}catch(e){}
+}
+function lsLoad(){
+  try{
+    var raw=localStorage.getItem(SK);if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){return null;}
+}
+
 function resetState(){
   if(!confirm('¿Restablecer todo a los valores por defecto?'))return;
-  localStorage.removeItem(SK);location.reload();
+  localStorage.removeItem(SK);
+  if(GH.token){
+    // También borrar en GitHub
+    var empty={v:2,ts:Date.now(),cfg:{r0:5,dr:1,n:14,p0:30,dp:5,iva:21},
+      sucs:[{id:'s1',name:'Benavidez',addr:'Diego Palma 365, Tigre',lat:-34.400,lng:-58.673,col:'#f59e0b'},
+            {id:'s2',name:'Matheu',addr:'Lavalle 211, Escobar',lat:-34.353,lng:-58.805,col:'#a78bfa'}],
+      rings:[]};
+    var content=btoa(unescape(encodeURIComponent(JSON.stringify(empty,null,2))));
+    var body={message:'reset config',content:content,branch:GH.branch};
+    if(_lastSha) body.sha=_lastSha;
+    fetch(GH_URL,{method:'PUT',headers:{'Authorization':'token '+GH.token,'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(){location.reload();});
+  } else {
+    location.reload();
+  }
 }
-map.on('moveend zoomend',saveState);
+
+// ─── TOKEN desde localStorage ─────────────────────────────
+var TOKEN_KEY = 'yesplack_gh_token';
+function saveToken(){
+  var t = document.getElementById('ghTokenInput').value.trim();
+  if(!t){showToast('Ingresá el token primero','err');return;}
+  GH.token = t;
+  try{localStorage.setItem(TOKEN_KEY, t);}catch(e){}
+  var msg = document.getElementById('syncStatusMsg');
+  msg.style.display='block';msg.style.color='#fbbf24';msg.textContent='Verificando token...';
+  // Probar con una lectura
+  ghLoad(function(st){
+    if(st){
+      msg.style.color='#4ade80';msg.textContent='✓ Token válido — sincronización activa';
+      applyLoadedData(st);buildRings();renderAll();
+      startPolling();
+    } else {
+      // Si 404 es que no existe el archivo aún — guardar config inicial
+      ghSave();
+      msg.style.color='#4ade80';msg.textContent='✓ Config inicial guardada en GitHub';
+      startPolling();
+    }
+  });
+}
+function loadStoredToken(){
+  try{
+    var t=localStorage.getItem(TOKEN_KEY);
+    if(t){GH.token=t;var el=document.getElementById('ghTokenInput');if(el)el.value=t;}
+  }catch(e){}
+}
+
+// ─── INIT SYNC ────────────────────────────────────────────
+function initSync(){
+  loadStoredToken(); // cargar token guardado primero
+  // 1. Cargar cache local inmediatamente (UX rápida)
+  var cached = lsLoad();
+  if(cached){ applyLoadedData(cached); buildRings(); renderAll(); setSyncStatus('loading','Verificando nube...'); }
+  // 2. Cargar desde GitHub (puede actualizar encima del cache)
+  ghLoad(function(st){
+    if(st){
+      var applied = applyLoadedData(st);
+      if(applied){ buildRings(); renderAll(); }
+      else{ if(!cached){ buildRings(); renderAll(); } }
+    } else {
+      if(!cached){ buildRings(); renderAll(); }
+    }
+    startPolling();
+  });
+}
+
+map.on('moveend zoomend', function(){ lsSave(); }); // vista solo local
 
 function renderAll(){
   renderSucMarkers();renderRingPolys();renderLegend();
   renderRT();updCalcSel();updStats();renderSucList();updFBox();
-  saveState();
+  scheduleSave(); // guarda en GitHub con debounce
 }
 
 // PDF
@@ -760,12 +996,9 @@ var _tt;
 function showToast(msg,type){var el=document.getElementById('toast');el.textContent=msg;el.className='toast show'+(type==='err'?' err':'');clearTimeout(_tt);_tt=setTimeout(function(){el.classList.remove('show');},3000);}
 
 // INIT
-var loaded=loadState();
-if(!loaded) buildRings();
-renderAll();
+initSync();
 if(isMobile){
-  document.getElementById('calcHint').textContent='Tocá cualquier punto del mapa para ver el precio de flete.';
-  // En móvil el mapa necesita invalidateSize porque el layout cambió
+  document.getElementById('calcHint').textContent='Tocá cualquier punto del mapa para ver el precio.';
   setTimeout(function(){map.invalidateSize();},100);
 }
 </script>
